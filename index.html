@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Çıtır Osmaniye - Online Sipariş</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+</head>
+<body class="bg-orange-50 font-sans pb-10">
+
+    <header class="bg-orange-600 text-white p-6 text-center shadow-lg">
+        <h1 class="text-3xl font-bold italic">ÇITIR OSMANİYE</h1>
+        <p class="text-sm opacity-90">Taze, Sıcak ve Çıtır!</p>
+    </header>
+
+    <div class="max-w-md mx-auto mt-6 px-4">
+        <div id="menu" class="space-y-4">
+            <h2 class="text-xl font-semibold border-b-2 border-orange-200 pb-2 text-orange-800">Siparişini Oluştur</h2>
+            
+            <div class="bg-white p-4 rounded-xl shadow-sm flex justify-between items-center border-l-4 border-orange-500">
+                <div>
+                    <h3 class="font-bold text-gray-800">SİMİT (Kaşarlı & Sucuklu)</h3>
+                    <p class="text-orange-600 font-bold">45₺</p>
+                </div>
+                <button onclick="sepeteEkle('Kaşarlı-Sucuklu Simit', 45)" class="bg-orange-500 text-white px-5 py-2 rounded-lg active:scale-95 transition font-bold">Ekle</button>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl shadow-sm flex justify-between items-center border-l-4 border-orange-500">
+                <div>
+                    <h3 class="font-bold text-gray-800">SİMİT (Kaşarlı)</h3>
+                    <p class="text-orange-600 font-bold">35₺</p>
+                </div>
+                <button onclick="sepeteEkle('Kaşarlı Simit', 35)" class="bg-orange-500 text-white px-5 py-2 rounded-lg active:scale-95 transition font-bold">Ekle</button>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl shadow-sm flex justify-between items-center border-l-4 border-orange-500">
+                <div>
+                    <h3 class="font-bold text-gray-800">SİMİT (Osmaniye Simiti)</h3>
+                    <p class="text-orange-600 font-bold">15₺</p>
+                </div>
+                <button onclick="sepeteEkle('Osmaniye Simiti', 15)" class="bg-orange-500 text-white px-5 py-2 rounded-lg active:scale-95 transition font-bold">Ekle</button>
+            </div>
+        </div>
+
+        <div id="cart" class="mt-8 bg-white p-6 rounded-2xl shadow-md border border-orange-100">
+            <h2 class="text-xl font-bold mb-4 flex items-center">🛒 Sepetiniz</h2>
+            <div id="sepetListesi" class="space-y-2 mb-4">
+                <p class="text-gray-400 italic text-center">Sepetiniz henüz boş...</p>
+            </div>
+            <hr class="my-4">
+            <div class="flex justify-between items-center mb-6 text-lg font-black">
+                <span>TOPLAM:</span>
+                <span id="toplamFiyat" class="text-orange-600 text-2xl">0₺</span>
+            </div>
+
+            <div id="musteriBilgi" class="space-y-3 hidden">
+                <input type="text" id="adSoyad" placeholder="Ad Soyad" class="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-orange-500 outline-none transition">
+                <input type="tel" id="telNo" placeholder="Telefon Numaranız" class="w-full border-2 border-gray-100 p-3 rounded-xl focus:border-orange-500 outline-none transition">
+                <button onclick="siparisVer()" class="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-green-700 active:scale-95 transition">SİPARİŞİ ONAYLA</button>
+            </div>
+        </div>
+
+        <div class="mt-12 text-center">
+            <button onclick="adminPaneliAc()" class="text-orange-100 text-xs hover:text-orange-300">Yönetim Paneli</button>
+        </div>
+
+        <div id="adminSection" class="mt-6 hidden bg-gray-900 text-white p-5 rounded-2xl shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                <h2 class="text-xl font-bold text-green-400">Gelen Siparişler</h2>
+                <button onclick="document.getElementById('adminSection').classList.add('hidden')" class="text-red-400 font-bold">Kapat</button>
+            </div>
+            <div id="siparisListesi" class="space-y-4 max-h-96 overflow-y-auto pr-2">
+                <p class="text-gray-500 text-center">Sipariş bekleniyor...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // SENİN SİMİT PROJENİN FİREBASE BİLGİLERİ
+        const firebaseConfig = {
+            apiKey: "AIzaSyCSo1SlJ3DfZaeBlPoyM8u3HONrbCDoHVE",
+            authDomain: "simit-ab17d.firebaseapp.com",
+            databaseURL: "https://simit-ab17d-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "simit-ab17d",
+            storageBucket: "simit-ab17d.firebasestorage.app",
+            messagingSenderId: "17904051686",
+            appId: "1:17904051686:web:fdd597fb75ee37fd766227"
+        };
+        
+        // Firebase Başlat
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        let sepet = [];
+        let toplam = 0;
+
+        function sepeteEkle(isim, fiyat) {
+            sepet.push({isim, fiyat});
+            document.getElementById('musteriBilgi').classList.remove('hidden');
+            guncelleSepet();
+        }
+
+        function guncelleSepet() {
+            const liste = document.getElementById('sepetListesi');
+            liste.innerHTML = "";
+            toplam = 0;
+
+            if(sepet.length === 0) {
+                liste.innerHTML = '<p class="text-gray-400 italic text-center">Sepetiniz henüz boş...</p>';
+                document.getElementById('musteriBilgi').classList.add('hidden');
+            } else {
+                sepet.forEach((item, index) => {
+                    toplam += item.fiyat;
+                    liste.innerHTML += `
+                    <div class="flex justify-between items-center bg-orange-50 p-2 rounded-lg border border-orange-100">
+                        <span class="text-sm font-medium text-gray-700">${item.isim}</span>
+                        <div class="flex items-center gap-3">
+                            <span class="font-bold text-orange-600">${item.fiyat}₺</span>
+                            <button onclick="urunuSil(${index})" class="text-red-500 text-xs font-bold">X</button>
+                        </div>
+                    </div>`;
+                });
+            }
+            document.getElementById('toplamFiyat').innerText = toplam + "₺";
+        }
+
+        function urunuSil(index) {
+            sepet.splice(index, 1);
+            guncelleSepet();
+        }
+
+        function siparisVer() {
+            const ad = document.getElementById('adSoyad').value.trim();
+            const tel = document.getElementById('telNo').value.trim();
+
+            if(!ad || !tel || sepet.length === 0) {
+                alert("Lütfen tüm alanları doldurun ve ürün seçin!");
+                return;
+            }
+
+            const yeniSiparis = {
+                musteri: ad,
+                telefon: tel,
+                urunler: sepet,
+                toplamTutar: toplam,
+                tarih: new Date().toLocaleString('tr-TR'),
+                timestamp: Date.now()
+            };
+
+            database.ref('siparisler').push(yeniSiparis).then(() => {
+                alert("Harika! Siparişin ustaya ulaştı. Hemen hazırlanıyor!");
+                sepet = [];
+                document.getElementById('adSoyad').value = "";
+                document.getElementById('telNo').value = "";
+                guncelleSepet();
+            }).catch(error => {
+                alert("Hata oluştu: " + error.message);
+            });
+        }
+
+        // Admin Paneli Fonksiyonları
+        function adminPaneliAc() {
+            const sifre = prompt("Yönetici Şifresini Giriniz:");
+            if(sifre === "78780078") {
+                document.getElementById('adminSection').classList.remove('hidden');
+                verileriCek();
+                // Sayfayı admin kısmına kaydır
+                window.scrollTo(0, document.body.scrollHeight);
+            } else {
+                alert("Yanlış Şifre!");
+            }
+        }
+
+        function verileriCek() {
+            // Siparişleri tersten (en yeni en üstte) çekmek için timestamp kullanıyoruz
+            database.ref('siparisler').orderByChild('timestamp').on('value', (snapshot) => {
+                const listNode = document.getElementById('siparisListesi');
+                listNode.innerHTML = "";
+                
+                let orders = [];
+                snapshot.forEach((childSnapshot) => {
+                    orders.unshift({id: childSnapshot.key, ...childSnapshot.val()});
+                });
+
+                if(orders.length === 0) {
+                    listNode.innerHTML = '<p class="text-gray-500 text-center">Henüz sipariş yok.</p>';
+                    return;
+                }
+
+                orders.forEach((s) => {
+                    const urunMetni = s.urunler.map(u => u.isim).join(", ");
+                    listNode.innerHTML += `
+                        <div class="bg-gray-800 p-4 rounded-xl border-l-4 border-green-500 shadow-inner relative group">
+                            <p class="text-green-400 font-bold text-lg">${s.musteri}</p>
+                            <p class="text-white">📞 ${s.telefon}</p>
+                            <p class="text-gray-300 text-sm mt-1">🥯 ${urunMetni}</p>
+                            <div class="flex justify-between items-center mt-3">
+                                <span class="bg-green-900 text-green-200 px-2 py-1 rounded text-xs font-bold">${s.toplamTutar}₺</span>
+                                <span class="text-[10px] text-gray-500">${s.tarih}</span>
+                            </div>
+                            <button onclick="siparisSil('${s.id}')" class="absolute top-2 right-2 text-gray-600 hover:text-red-500 text-xs">Siparişi Temizle</button>
+                        </div>
+                    `;
+                });
+            });
+        }
+
+        function siparisSil(id) {
+            if(confirm("Bu sipariş tamamlandı mı? Listeden silinecek.")) {
+                database.ref('siparisler/' + id).remove();
+            }
+        }
+    </script>
+</body>
+</html>
